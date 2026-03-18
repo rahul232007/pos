@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Settings{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="margin-bottom: 2rem;">Business Settings</h1>
+
+    <div class="glass-card" style="margin-bottom: 2rem;">
+        <form method="POST">
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Company Name</label>
+                <input type="text" name="company_name" value="{{ settings.company_name }}" required
+                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">GSTIN</label>
+                <input type="text" name="gstin" value="{{ settings.gstin }}" required
+                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Business Address</label>
+                <textarea name="address" required rows="3"
+                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white; resize: vertical;">{{ settings.address }}</textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Phone</label>
+                    <input type="text" name="phone" value="{{ settings.phone or '' }}"
+                        style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Contact
+                        Email</label>
+                    <input type="email" name="email" value="{{ settings.email or '' }}"
+                        style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-premium" style="width: 100%;">Save Settings</button>
+        </form>
+    </div>
+
+    <div class="glass-card" style="border: 1px solid rgba(239, 68, 68, 0.3);">
+        <h2 style="color: #ef4444; margin-bottom: 1.5rem; font-size: 1.25rem;"><i
+                class="fas fa-exclamation-triangle mr-2"></i> Data Management</h2>
+
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <form action="{{ url_for('admin.create_backup') }}" method="POST" style="flex: 1;">
+                <button type="submit" class="btn-premium" style="width: 100%; background: #6366f1;">
+                    <i class="fas fa-file-export mr-2"></i> Create Backup
+                </button>
+            </form>
+            <form action="{{ url_for('admin.reset_data') }}" method="POST" style="flex: 1;"
+                onsubmit="return confirm('WARNING: This will delete all products, invoices, and customers. A backup will be created automatically. Proceed?')">
+                <button type="submit" class="btn-premium" style="width: 100%; background: #ef4444;">
+                    <i class="fas fa-trash-alt mr-2"></i> Reset Application Data
+                </button>
+            </form>
+        </div>
+
+        <h3 style="font-size: 1rem; margin-bottom: 1rem;">Available Backups</h3>
+        <div
+            style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--glass-border);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: rgba(255,255,255,0.05);">
+                    <tr style="text-align: left; font-size: 0.8rem; color: var(--text-muted);">
+                        <th style="padding: 0.75rem;">Backup Name</th>
+                        <th style="padding: 0.75rem; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for backup in backups %}
+                    <tr style="border-top: 1px solid var(--glass-border);">
+                        <td style="padding: 0.75rem; font-size: 0.85rem;">{{ backup }}</td>
+                        <td style="padding: 0.75rem; text-align: right;">
+                            <form action="{{ url_for('admin.restore_backup', filename=backup) }}" method="POST"
+                                style="display: inline;"
+                                onsubmit="return confirm('Are you sure you want to RESTORE this backup? Current data will be overwritten.')">
+                                <button type="submit"
+                                    style="background: #10b981; color: white; border: none; padding: 0.35rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                                    Restore
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2"
+                            style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                            No backups found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

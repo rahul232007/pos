@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Shift Management{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <h1>Shift Management</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <!-- Current Shift Status -->
+    <div class="glass-card" style="text-align: center; padding: 3rem 2rem;">
+        {% if current_shift %}
+        <div
+            style="width: 80px; height: 80px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; font-size: 2rem;">
+            <i class="fas fa-clock"></i>
+        </div>
+        <h2 style="margin-bottom: 0.5rem; color: var(--text-main);">Shift Open</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Started at {{
+            current_shift.start_time.strftime('%H:%M, %d %b') }}</p>
+
+        <div
+            style="background: #f8fafc; padding: 1rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid var(--glass-border);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Opening Cash</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">₹{{
+                "%.2f"|format(current_shift.opening_cash) }}</div>
+        </div>
+
+        <form action="{{ url_for('pos.close_shift') }}" method="POST">
+            <div style="margin-bottom: 1.5rem; text-align: left;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Actual
+                    Cash in Drawer</label>
+                <input type="number" step="0.01" name="actual_cash" required
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px;">
+            </div>
+            <button type="submit" class="btn-premium" style="width: 100%; background: #ef4444;">End Shift</button>
+        </form>
+
+        <form action="{{ url_for('pos.reset_shift') }}" method="POST"
+            onsubmit="return confirm('Are you sure you want to reset this shift? This will clear opening cash and restart the timer.');"
+            style="margin-top: 1rem;">
+            <button type="submit" class="btn-premium" style="width: 100%; background: #fbbf24; color: #78350f;">Reset
+                Shift</button>
+        </form>
+        {% else %}
+        <div
+            style="width: 80px; height: 80px; background: #94a3b8; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; font-size: 2rem;">
+            <i class="fas fa-moon"></i>
+        </div>
+        <h2 style="margin-bottom: 0.5rem; color: var(--text-main);">No Active Shift</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Start a new shift to begin billing</p>
+
+        <form action="{{ url_for('pos.open_shift') }}" method="POST">
+            <div style="margin-bottom: 1.5rem; text-align: left;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Opening
+                    Cash</label>
+                <input type="number" step="0.01" name="opening_cash" value="0"
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px;">
+            </div>
+            <button type="submit" class="btn-premium" style="width: 100%;">Start Shift</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- History -->
+    <div class="glass-card">
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Shift History</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr
+                    style="text-align: left; border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.85rem;">
+                    {% if current_user.role == 'admin' %}
+                    <th style="padding: 1rem;">User</th>
+                    {% endif %}
+                    <th style="padding: 1rem;">Start</th>
+                    <th style="padding: 1rem;">End</th>
+                    <th style="padding: 1rem;">Expected</th>
+                    <th style="padding: 1rem;">Actual</th>
+                    <th style="padding: 1rem;">Diff</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shift in shifts %}
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    {% if current_user.role == 'admin' %}
+                    <td style="padding: 1rem; font-weight: 600;">
+                        {{ shift.user.username if shift.user else 'Unknown' }}
+                    </td>
+                    {% endif %}
+                    <td style="padding: 1rem; font-size: 0.9rem;">{{ shift.start_time.strftime('%d %b %H:%M') }}</td>
+                    <td style="padding: 1rem; font-size: 0.9rem;">{{ shift.end_time.strftime('%H:%M') if shift.end_time
+                        else 'Active' }}</td>
+                    <td style="padding: 1rem;">₹{{ "%.2f"|format(shift.closing_cash or 0) }}</td>
+                    <td style="padding: 1rem;">₹{{ "%.2f"|format(shift.actual_cash or 0) }}</td>
+                    <td
+                        style="padding: 1rem; color: {% if (shift.actual_cash or 0) < (shift.closing_cash or 0) %}#ef4444{% else %}#10b981{% endif %};">
+                        ₹{{ "%.2f"|format((shift.actual_cash or 0) - (shift.closing_cash or 0)) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

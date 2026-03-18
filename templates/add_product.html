@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Add Product{% endblock %}
+
+{% block scripts %}
+<script>
+    let html5QrCode;
+
+    document.getElementById('startScan').addEventListener('click', () => {
+        const container = document.getElementById('scannerContainer');
+        container.style.display = 'block';
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                document.getElementById('barcodeInput').value = decodedText;
+                stopScanning();
+            },
+            () => {
+                if (!window.lastScanTime) window.lastScanTime = 0;
+                const now = Date.now();
+                if (now - window.lastScanTime > 800) {
+                    window.lastScanTime = now;
+                    captureAndScanServerSide();
+                }
+            }
+        ).catch((err) => {
+            console.error("Camera start error", err);
+            alert("Could not start camera. Please check permissions.");
+            container.style.display = 'none';
+        });
+    });
+
+    async function captureAndScanServerSide() {
+        const video = document.querySelector('#reader video');
+        if (!video) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+        try {
+            const response = await fetch('/api/barcode/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Image })
+            });
+            const result = await response.json();
+            if (result.success) {
+                document.getElementById('barcodeInput').value = result.barcode;
+                stopScanning();
+            }
+        } catch (e) { console.error("Server-side scan failed", e); }
+    }
+
+    document.getElementById('stopScan').addEventListener('click', stopScanning);
+
+    function stopScanning() {
+        if (html5QrCode) {
+            html5QrCode.stop().then(() => {
+                document.getElementById('scannerContainer').style.display = 'none';
+            }).catch(err => {
+                console.error("Stop error", err);
+                document.getElementById('scannerContainer').style.display = 'none';
+            });
+        }
+    }
+
+    function addVariantRow() {
+        const container = document.getElementById('variantsList');
+        const div = document.createElement('div');
+        div.style.display = 'grid';
+        div.style.gridTemplateColumns = '2fr 1fr 1fr 40px';
+        div.style.gap = '0.75rem';
+        div.innerHTML = `
+            <input type="text" name="variant_names[]" placeholder="Name (e.g. Small)" style="padding: 0.6rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.85rem;">
+            <input type="number" step="0.01" name="variant_prices[]" placeholder="Price Impact" style="padding: 0.6rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.85rem;">
+            <input type="number" name="variant_stocks[]" placeholder="Stock" style="padding: 0.6rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.85rem;">
+            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-times"></i></button>
+        `;
+        container.appendChild(div);
+    }
+
+    function addModifierRow() {
+        const container = document.getElementById('modifiersList');
+        const div = document.createElement('div');
+        div.style.display = 'grid';
+        div.style.gridTemplateColumns = '2fr 1fr 40px';
+        div.style.gap = '0.75rem';
+        div.innerHTML = `
+            <input type="text" name="modifier_names[]" placeholder="Name (e.g. Extra Cheese)" style="padding: 0.6rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.85rem;">
+            <input type="number" step="0.01" name="modifier_prices[]" placeholder="Price" style="padding: 0.6rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.85rem;">
+            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-times"></i></button>
+        `;
+        container.appendChild(div);
+    }
+
+    // Prevent Enter key in barcode field from submitting the form
+    document.getElementById('barcodeInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Optional: You could trigger a check here if needed
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto; padding: 2rem 0;">
+    <h1 style="margin-bottom: 2rem; font-size: 1.75rem;">Add New Product</h1>
+
+    <div class="glass-card">
+        <form method="POST" enctype="multipart/form-data">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Barcode</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="barcode" id="barcodeInput" required placeholder="e.g. 123456789"
+                            style="flex: 1; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                        <script>
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const barcode = urlParams.get('barcode');
+                            if (barcode) document.getElementById('barcodeInput').value = barcode;
+                        </script>
+                        <button type="button" id="startScan" class="btn-premium" style="padding: 0.75rem;"><i
+                                class="fas fa-camera"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Category</label>
+                    <select name="category_id"
+                        style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                        <option value="">No Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Scanner Modal/Container -->
+            <div id="scannerContainer"
+                style="display: none; margin-bottom: 1.5rem; border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden; background: #000; position: relative;">
+                <div id="reader" style="width: 100%;"></div>
+                <button type="button" id="stopScan"
+                    style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(239, 68, 68, 0.8); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-times"></i> Stop
+                </button>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Product
+                    Name</label>
+                <input type="text" name="name" required placeholder="e.g. Fresh Milk 1L"
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">HSN
+                        Code</label>
+                    <input type="text" name="hsn_code" placeholder="Optional"
+                        style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                </div>
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Selling
+                        Price (Incl. GST)</label>
+                    <input type="number" step="0.01" name="price" required placeholder="0.00"
+                        style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">GST
+                        Rate (%)</label>
+                    <select name="gst_rate"
+                        style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                        <option value="0">0%</option>
+                        <option value="5">5%</option>
+                        <option value="12">12%</option>
+                        <option value="18" selected>18%</option>
+                        <option value="28">28%</option>
+                    </select>
+                </div>
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Initial
+                        Stock</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="number" name="stock_quantity" value="0"
+                            style="flex: 2; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                        <select name="unit"
+                            style="flex: 1; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main);">
+                            <option value="pcs">pcs</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Ltrs">Ltrs</option>
+                            <option value="Box">Box</option>
+                            <option value="Pack">Pack</option>
+                            <option value="m">m</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variants Section -->
+            <div style="margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="font-size: 1rem; color: var(--text-main);">Product Variants</h3>
+                    <button type="button" onclick="addVariantRow()" class="btn-premium"
+                        style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">+ Add Variant</button>
+                </div>
+                <div id="variantsList" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Variant rows will be added here -->
+                </div>
+            </div>
+
+            <!-- Modifiers Section -->
+            <div style="margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="font-size: 1rem; color: var(--text-main);">Available Modifiers</h3>
+                    <button type="button" onclick="addModifierRow()" class="btn-premium"
+                        style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">+ Add Modifier</button>
+                </div>
+                <div id="modifiersList" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Modifier rows will be added here -->
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn-premium" style="flex: 2;">
+                    <i class="fas fa-save mr-2"></i> Save Product
+                </button>
+                <a href="{{ url_for('inventory.list_products') }}"
+                    style="flex: 1; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-muted);">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

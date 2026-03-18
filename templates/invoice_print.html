@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block head %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: #f1f5f9;
+        font-family: 'Courier Prime', monospace;
+    }
+
+    .invoice-box {
+        max-width: 80mm;
+        margin: auto;
+        padding: 10px;
+        background: white;
+        color: black;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .invoice-header,
+    .invoice-footer {
+        text-align: center;
+        border-bottom: 1px dashed black;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+
+    .invoice-header h1 {
+        font-size: 16px;
+        margin: 5px 0;
+        text-transform: uppercase;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+    }
+
+    .items-table th {
+        text-align: left;
+        border-bottom: 1px dashed black;
+        font-size: 11px;
+    }
+
+    .items-table td {
+        padding: 4px 0;
+    }
+
+    .totals-section {
+        margin-top: 10px;
+        border-top: 1px dashed black;
+        padding-top: 10px;
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+    }
+
+    .grand-total {
+        font-weight: bold;
+        font-size: 14px;
+        border-top: 1px solid black;
+        padding-top: 5px;
+        margin-top: 5px;
+    }
+
+    .no-print {
+        max-width: 80mm;
+        margin: 20px auto;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-print {
+        width: 100%;
+        padding: 10px;
+        background: black;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: bold;
+    }
+
+    @media print {
+        @page {
+            margin: 0;
+            size: 80mm auto;
+        }
+
+        body {
+            background: white;
+        }
+
+        .no-print,
+        .sidebar {
+            display: none !important;
+        }
+
+        .invoice-box {
+            width: 100%;
+            max-width: none;
+            padding: 0;
+            margin: 0;
+            box-shadow: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="no-print"
+    style="max-width: 800px; margin: 0 auto 1rem auto; display: flex; justify-content: space-between;">
+    <a href="{{ url_for('pos.billing') }}" class="btn-premium"
+        style="background: var(--bg-card); color: white; text-decoration: none;">
+        <i class="fas fa-arrow-left"></i> Back to Billing
+    </a>
+    <button onclick="window.print()" class="btn-premium btn-print">
+        <i class="fas fa-print"></i> PRINT INVOICE
+    </button>
+</div>
+
+<div class="invoice-box glass-card">
+    <div class="invoice-header">
+        <div class="business-info">
+            <h1>{{ settings.company_name }}</h1>
+            <p>{{ settings.address }}</p>
+            <p>GSTIN: {{ settings.gstin }}</p>
+            {% if settings.phone %}<p>Phone: {{ settings.phone }}</p>{% endif %}
+        </div>
+        <div class="invoice-details">
+            <h2>TAX INVOICE</h2>
+            <p><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
+            <p><strong>Date:</strong> {{ invoice.timestamp.strftime('%d-%m-%Y %H:%M') }}</p>
+            {% if invoice.customer %}
+            <p><strong>Customer:</strong> {{ invoice.customer.name }}</p>
+            <p><strong>Mobile:</strong> {{ invoice.customer.phone }}</p>
+            {% endif %}
+            {% if invoice.customer_gstin %}
+            <p><strong>Customer GSTIN:</strong> {{ invoice.customer_gstin }}</p>
+            {% endif %}
+            <p><strong>Payment Mode:</strong> {{ invoice.payment_mode }}</p>
+        </div>
+    </div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Item Description</th>
+                <th>HSN</th>
+                <th>Price</th>
+                <th>Qty</th>
+                <th>GST %</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in invoice.items %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.product.hsn_code or '-' }}</td>
+                <td>₹{{ "%.2f"|format(item.unit_price) }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.product.gst_rate }}%</td>
+                <td>₹{{ "%.2f"|format((item.unit_price * item.quantity) + item.gst_amount) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals-section">
+        <div class="total-row">
+            <span>Subtotal</span>
+            <span>₹{{ "%.2f"|format(invoice.total_amount - invoice.total_gst) }}</span>
+        </div>
+        <div class="total-row">
+            <span>Total GST</span>
+            <span>₹{{ "%.2f"|format(invoice.total_gst) }}</span>
+        </div>
+        <div class="total-row grand-total">
+            <span>Grand Total</span>
+            <span style="color: var(--accent-primary);">₹{{ "%.2f"|format(invoice.total_amount) }}</span>
+        </div>
+    </div>
+    <div style="clear: both;"></div>
+
+    <div style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.8rem; color: #666;">
+        <p><strong>Terms:</strong> Computer generated invoice. No signature required.</p>
+        <p>Thank you for your business!</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.onload = function () {
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    };
+
+    window.onafterprint = function () {
+        window.location.href = "{{ url_for('pos.billing') }}";
+    };
+
+    document.addEventListener('click', () => {
+        if (!window._redirected) {
+            window._redirected = true;
+            window.location.href = "{{ url_for('pos.billing') }}";
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Analytics{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center;">
+    <!-- Top Selling Products -->
+    <div class="glass-card" style="width: 100%; max-width: 800px;">
+        <h2 style="margin-bottom: 2rem;"><i class="fas fa-trophy mr-2"></i> Popular Products</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+                    <th style="padding: 1rem;">Product</th>
+                    <th style="padding: 1rem;">Units Sold</th>
+                    <th style="padding: 1rem;">Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prod in top_products %}
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 1rem;">{{ prod.name }}</td>
+                    <td style="padding: 1rem;">{{ prod.units_sold }}</td>
+                    <td style="padding: 1rem;">₹{{ "%.2f"|format(prod.revenue or 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

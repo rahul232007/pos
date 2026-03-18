@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Adjustments{% endblock %}
+
+{% block scripts %}
+<script>
+    function updateStockPreview() {
+        const select = document.getElementById('productSelect');
+        const qtyInput = document.getElementById('qtyAdjust');
+        const preview = document.getElementById('stockPreview');
+        const presentDisplay = document.getElementById('presentStock');
+        const newDisplay = document.getElementById('newStock');
+
+        const selectedOption = select.options[select.selectedIndex];
+
+        if (!selectedOption || select.value === "") {
+            preview.style.display = 'none';
+            return;
+        }
+
+        const currentStock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
+        const adjustment = parseInt(qtyInput.value) || 0;
+        const projectedStock = currentStock + adjustment;
+
+        presentDisplay.innerText = currentStock;
+        newDisplay.innerText = projectedStock;
+
+        // Color coding for negative projected stock
+        if (projectedStock < 0) {
+            newDisplay.style.color = '#ef4444';
+        } else if (adjustment > 0) {
+            newDisplay.style.color = '#10b981';
+        } else if (adjustment < 0) {
+            newDisplay.style.color = '#f59e0b';
+        } else {
+            newDisplay.style.color = '#111827';
+        }
+
+        preview.style.display = 'block';
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1>Stock Adjustments</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('inventory.list_products') }}" class="btn-premium"
+            style="background: transparent; color: var(--accent-primary); border: 1px solid var(--accent-primary);">
+            Back to Inventory
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <!-- Adjustment Form -->
+    <div class="glass-card">
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">New Adjustment</h2>
+        <form action="{{ url_for('inventory.add_adjustment') }}" method="POST">
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Product</label>
+                <select name="product_id" id="productSelect" required onchange="updateStockPreview()"
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <option value="">Select Product...</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" data-stock="{{ p.stock_quantity }}">{{ p.name }} (Stock: {{
+                        p.stock_quantity }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Quantity
+                    Change</label>
+                <input type="number" name="quantity" id="qtyAdjust" required
+                    placeholder="e.g. -5 for damage, 10 for restock" oninput="updateStockPreview()"
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px;">
+            </div>
+
+            <!-- Real-time Preview -->
+            <div id="stockPreview"
+                style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="text-align: center; flex: 1;">
+                        <span style="display: block; font-size: 0.75rem; color: #166534; font-weight: 600;">PRESENT
+                            STOCK</span>
+                        <span id="presentStock" style="font-size: 1.25rem; font-weight: 700; color: #166534;">0</span>
+                    </div>
+                    <div style="font-size: 1.5rem; color: #166534; padding: 0 1rem;"><i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <span style="display: block; font-size: 0.75rem; color: #166534; font-weight: 600;">NEW
+                            STOCK</span>
+                        <span id="newStock" style="font-size: 1.25rem; font-weight: 700; color: #111827;">0</span>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label
+                    style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Reason</label>
+                <select name="reason"
+                    style="width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <option value="damage">Damage</option>
+                    <option value="loss">Loss</option>
+                    <option value="manual_count">Manual Count Adjustment</option>
+                    <option value="restock">Manual Restock</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-premium" style="width: 100%;">Apply Adjustment</button>
+        </form>
+    </div>
+
+    <!-- History -->
+    <div class="glass-card">
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Adjustment History</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr
+                    style="text-align: left; border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.85rem;">
+                    <th style="padding: 1rem;">Date</th>
+                    <th style="padding: 1rem;">Product</th>
+                    <th style="padding: 1rem;">Qty</th>
+                    <th style="padding: 1rem;">Stock Before</th>
+                    <th style="padding: 1rem;">Stock After</th>
+                    <th style="padding: 1rem;">Reason</th>
+                    <th style="padding: 1rem;">Staff</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adj in adjustments %}
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 1rem; font-size: 0.9rem;">{{ adj.timestamp.strftime('%d %b %H:%M') }}</td>
+                    <td style="padding: 1rem; font-weight: 600;">{{ adj.product.name }}</td>
+                    <td
+                        style="padding: 1rem; color: {% if adj.quantity < 0 %}#ef4444{% else %}#10b981{% endif %}; font-weight: 700;">
+                        {{ '+' if adj.quantity > 0 else '' }}{{ adj.quantity }}
+                    </td>
+                    <td style="padding: 1rem; font-weight: 600;">
+                        {{ adj.stock_snapshot if adj.stock_snapshot is not none else 'N/A' }}
+                    </td>
+                    <td style="padding: 1rem; font-weight: 600;">
+                        {% if adj.stock_snapshot is not none %}
+                        {{ adj.stock_snapshot + adj.quantity }}
+                        {% else %}
+                        {{ adj.product.stock_quantity }}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem;"><span
+                            style="text-transform: capitalize; background: #f1f5f9; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{{
+                            adj.reason }}</span></td>
+                    <td style="padding: 1rem; font-size: 0.9rem;">{{ adj.user.username }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Sales Report{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem;">
+        <h2 style="margin-right: auto;">Daily Sales breakdown</h2>
+        <a href="{{ url_for('reports.export_daily_sales') }}" class="btn-premium"
+            style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); text-decoration: none;">
+            <i class="fas fa-file-csv mr-2"></i> Export CSV
+        </a>
+        <a href="{{ url_for('reports.index') }}" class="btn-premium"
+            style="background: var(--bg-card); color: white; text-decoration: none;">
+            <i class="fas fa-arrow-left"></i> Transaction History
+        </a>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+                <th style="padding: 1rem;">Date</th>
+                <th style="padding: 1rem;">Transactions</th>
+                <th style="padding: 1rem;">Total Sales</th>
+                <th style="padding: 1rem;">Total GST</th>
+                <th style="padding: 1rem;">Estimated Profit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in daily_stats %}
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="padding: 1rem; font-weight: 600;">{{ stat.date }}</td>
+                <td style="padding: 1rem;">{{ stat.tx_count }}</td>
+                <td style="padding: 1rem; color: var(--accent-primary); font-weight: 700;">₹{{
+                    "%.2f"|format(stat.total_sales) }}</td>
+                <td style="padding: 1rem;">₹{{ "%.2f"|format(stat.total_gst) }}</td>
+                <td style="padding: 1rem; color: #10b981; font-weight: 700;">₹{{ "%.2f"|format(stat.profit) }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">No sales data
+                    available yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
