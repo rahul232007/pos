@@ -1,4 +1,5 @@
 import os
+import sys
 from flask import Flask
 from dotenv import load_dotenv
 from extensions import db, login_manager, socketio
@@ -6,15 +7,30 @@ from models import User
 
 load_dotenv()
 
+# ✅ Fix for PyInstaller (templates & static path)
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__,
+                template_folder=resource_path('templates'),
+                static_folder=resource_path('static'))
+
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///pos.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key')
 
     db.init_app(app)
     login_manager.init_app(app)
-    socketio.init_app(app)
+
+    # ✅ FIXED SocketIO (VERY IMPORTANT)
+    socketio.init_app(app, async_mode='threading')
 
     login_manager.login_view = 'auth.login'
     login_manager.login_message = None
@@ -28,6 +44,7 @@ def create_app():
         from flask import session
         from flask_login import current_user
         from models import BusinessSettings
+
         is_spectating = 'spectate_id' in session
         spectated_user = None
         
@@ -41,11 +58,10 @@ def create_app():
         if effective_user_id:
             business_settings = BusinessSettings.query.filter_by(user_id=effective_user_id).first()
             if not business_settings:
-                # Provide default settings if none found for user
                 business_settings = BusinessSettings(company_name="My Store", user_id=effective_user_id)
         
         if not business_settings:
-            business_settings = BusinessSettings.query.first() # Fallback
+            business_settings = BusinessSettings.query.first()
 
         return dict(
             is_spectating=is_spectating, 
@@ -54,8 +70,8 @@ def create_app():
         )
 
     with app.app_context():
-        # Register blueprints (to be created)
         from routes import auth_bp, pos_bp, inventory_bp, reports_bp, admin_bp, returns_bp
+
         app.register_blueprint(auth_bp)
         app.register_blueprint(pos_bp)
         app.register_blueprint(inventory_bp)
@@ -65,7 +81,7 @@ def create_app():
 
         db.create_all()
         
-        # Create default admin if not exists
+        # Default admin
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='admin', is_approved=True)
             admin.set_password('admin123')
@@ -79,14 +95,20 @@ def create_app():
     @socketio.on('connect')
     def on_connect():
         if current_user.is_authenticated:
-            # Join personal room
             join_room(f"user_{current_user.id}")
-            # Join admin room if applicable
             if current_user.role == 'admin':
                 join_room("admins")
 
     return app
 
+
 if __name__ == '__main__':
+    import webbrowser
+
     app = create_app()
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+
+    # ✅ Auto open browser (optional)
+    webbrowser.open("http://127.0.0.1:5000")
+
+    # ✅ Run app (stable for EXE)
+    socketio.run(app, host='127.0.0.1', port=5000, debug=False)

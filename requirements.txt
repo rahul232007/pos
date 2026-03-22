@@ -12,3 +12,4 @@ fastapi
 uvicorn
 pydantic
 opencv-python-headless
+eventlet
